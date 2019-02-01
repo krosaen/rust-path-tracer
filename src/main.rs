@@ -34,6 +34,9 @@ impl Vec3 {
     fn unit(&self) -> Self {
         *self / self.length()
     }
+    fn dot(&self, other: Self) -> f64 {
+        self.0*other.0 + self.1*other.1 + self.2*other.2
+    }
 }
 
 impl ops::Add for Vec3 {
@@ -41,6 +44,22 @@ impl ops::Add for Vec3 {
 
     fn add(self, other: Self) -> Self {
         Vec3(self.0 + other.0, self.1 + other.1, self.2 + other.2)
+    }
+}
+
+impl ops::Neg for Vec3 {
+    type Output = Self;
+
+    fn neg(self) -> Self {
+        Vec3(-self.0, -self.1, -self.2)
+    }
+}
+
+impl ops::Sub for Vec3 {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        self + -other
     }
 }
 
@@ -85,7 +104,19 @@ impl Ray {
     }
 }
 
+fn hit_sphere(center: Vec3, radius: f64, r: &Ray) -> bool {
+    let oc = *r.origin() - center;
+    let a = r.direction().dot(*r.direction());
+    let b = 2.0 * oc.dot(*r.direction());
+    let c = oc.dot(oc) - radius * radius;
+    let discriminant = b*b - 4.0*a*c;
+    discriminant > 0.0
+}
+
 fn color(r: &Ray) -> Vec3 {
+    if (hit_sphere(Vec3(0.0, 0.0, -1.0), 0.5, r)) {
+        return Vec3(1.0, 0.0, 0.0);
+    }
     let unit_direction = r.direction().unit();
     let t = 0.5 * (unit_direction.y() + 1.0);
     (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
