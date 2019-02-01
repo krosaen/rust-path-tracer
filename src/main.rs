@@ -1,10 +1,12 @@
 use std::fs::File;
 use std::io::BufWriter;
+use std::num;
 use std::ops;
 use std::path::Path;
 // To use encoder.set()
 use png::HasParameters;
 
+#[derive(Debug, Copy, Clone)]
 struct Vec3(f64, f64, f64);
 
 impl Vec3 {
@@ -26,6 +28,12 @@ impl Vec3 {
     fn b(&self) -> f64 {
         self.2
     }
+    fn length(&self) -> f64 {
+        (self.0 * self.0 + self.1 * self.1 + self.2 * self.2).sqrt()
+    }
+    fn unit(&self) -> Self {
+        *self / self.length()
+    }
 }
 
 impl ops::Add for Vec3 {
@@ -41,6 +49,22 @@ impl ops::Mul<f64> for Vec3 {
 
     fn mul(self, other: f64) -> Self {
         Vec3(self.0 * other, self.1 * other, self.2 * other)
+    }
+}
+
+impl ops::Mul<Vec3> for f64 {
+    type Output = Vec3;
+
+    fn mul(self, other: Vec3) -> Vec3 {
+        other * self
+    }
+}
+
+impl ops::Div<f64> for Vec3 {
+    type Output = Self;
+
+    fn div(self, other: f64) -> Self {
+        Vec3(self.0 / other, self.1 / other, self.2 / other)
     }
 }
 
@@ -61,16 +85,33 @@ impl Ray {
     }
 }
 
+fn color(r: &Ray) -> Vec3 {
+    let unit_direction = r.direction().unit();
+    let t = 0.5 * (unit_direction.y() + 1.0);
+    (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
+}
+
 fn main() {
     let nx = 200;
     let ny = 100;
+    let lower_left_corner = Vec3(-2.0, -1.0, -1.0);
+    let horizontal = Vec3(4.0, 0.0, 0.0);
+    let vertical = Vec3(0.0, 2.0, 0.0);
+    let origin = Vec3(0.0, 0.0, 0.0);
+
     let mut img_data = Vec::new();
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let color = Vec3((i as f64) / (nx as f64), (j as f64) / (ny as f64), 0.2);
-            let ir = (255.99 * color.r()) as u8;
-            let ig = (255.99 * color.g()) as u8;
-            let ib = (255.99 * color.b()) as u8;
+            let u = (i as f64) / (nx as f64);
+            let v = (j as f64) / (ny as f64);
+            let r = Ray {
+                a: origin,
+                b: lower_left_corner + u * horizontal + v * vertical,
+            };
+            let col = color(&r);
+            let ir = (255.99 * col.r()) as u8;
+            let ig = (255.99 * col.g()) as u8;
+            let ib = (255.99 * col.b()) as u8;
             img_data.push(ir);
             img_data.push(ig);
             img_data.push(ib);
