@@ -5,6 +5,7 @@ use std::io::BufWriter;
 use std::path::Path;
 // To use encoder.set()
 use png::HasParameters;
+use ordered_float;
 
 use crate::vec3::Vec3;
 
@@ -80,21 +81,12 @@ pub struct World {
     hittables: Vec<Box<Hittable>>,
 }
 
+
 impl Hittable for World {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-        let mut closest_t = t_max;
-        let mut closest_hit: Option<HitRecord> = None;
-        for hittable in &self.hittables {
-            closest_hit = match hittable.hit(&r, t_min, t_max) {
-                Some(hit_record) if hit_record.t < closest_t => {
-                    closest_t = hit_record.t;
-                    Some(hit_record)
-                }
-                Some(hit_record) => Some(hit_record),
-                None => closest_hit,
-            }
-        }
-        closest_hit
+        self.hittables.iter()
+            .filter_map(|h| h.hit(&r, t_min, t_max))
+            .min_by_key(|r| ordered_float::OrderedFloat(r.t))
     }
 }
 
