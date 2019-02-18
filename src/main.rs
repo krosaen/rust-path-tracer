@@ -8,9 +8,9 @@ use png::HasParameters;
 
 use crate::vec3::Vec3;
 
-struct Ray {
-    a: Vec3,
-    b: Vec3,
+pub struct Ray {
+    pub a: Vec3,
+    pub b: Vec3,
 }
 
 impl Ray {
@@ -25,27 +25,72 @@ impl Ray {
     }
 }
 
-fn hit_sphere(center: Vec3, radius: f64, r: &Ray) -> f64 {
-    let oc = *r.origin() - center;
-    let a = r.direction().dot(*r.direction());
-    let b = 2.0 * oc.dot(*r.direction());
-    let c = oc.dot(oc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
-    if discriminant < 0.0 {
-        return -1.0;
-    }
-    (-b - discriminant.sqrt()) / (2.0 * a)
+#[derive(Debug, Copy, Clone)]
+pub struct HitRecord {
+    pub t: f64,
+    pub p: Vec3,
+    pub normal: Vec3,
 }
 
-fn color(r: &Ray) -> Vec3 {
-    let t = hit_sphere(Vec3(0.0, 0.0, -1.0), 0.5, r);
-    if t > 0.0 {
-        let n = r.point_at_parameter(t).unit() - Vec3(0.0, 0.0, -1.0);
-        return 0.5 * Vec3(n.x() + 1.0, n.y() + 1.0, n.z() + 1.0);
+pub trait Hittable {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord>;
+}
+
+pub struct Sphere {
+    center: Vec3,
+    radius: f64,
+}
+
+impl Hittable for Sphere {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let oc = *r.origin() - self.center;
+        let a = r.direction().dot(*r.direction());
+        let b = 2.0 * oc.dot(*r.direction());
+        let c = oc.dot(oc) - self.radius * self.radius;
+        let discriminant = b * b - 4.0 * a * c;
+        if discriminant <= 0.0 {
+            return None;
+        }
+        let sol_pos = (-b + discriminant.sqrt()) / (2.0 * a);
+        let sol_neg = (-b - discriminant.sqrt()) / (2.0 * a);
+        let t : Option<f64> = {
+            if sol_pos > t_min && sol_pos < t_max {
+                Some(sol_pos)
+            } else if sol_neg > t_min && sol_neg < t_max {
+                Some(sol_neg)
+            } else {
+                None
+            }
+        };
+        match t {
+            Some(t_val) => {
+                let p = r.point_at_parameter(t_val);
+                Some(HitRecord{
+                    t: t_val, 
+                    p,
+                    normal: (p - self.center) / self.radius,
+                })
+            }
+            None => None
+        }
     }
-    let unit_direction = r.direction().unit();
-    let t = 0.5 * (unit_direction.y() + 1.0);
-    (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
+}
+
+fn color(r: &Ray, world: &Hittable) -> Vec3 {
+    match world.hit(&r, 0., 99999999999.) {
+        Some(hit_record) => {
+            0.5 * Vec3(
+                hit_record.normal.x() + 1.,
+                hit_record.normal.y() + 1.,
+                hit_record.normal.z() + 1.,
+            )
+        }
+        None => {
+            let unit_direction = r.direction().unit();
+            let t = 0.5 * (unit_direction.y() + 1.0);
+            (1.0 - t) * Vec3(1.0, 1.0, 1.0) + t * Vec3(0.5, 0.7, 1.0)
+        }
+    }
 }
 
 fn main() {
@@ -55,6 +100,10 @@ fn main() {
     let horizontal = Vec3(4.0, 0.0, 0.0);
     let vertical = Vec3(0.0, 2.0, 0.0);
     let origin = Vec3(0.0, 0.0, 0.0);
+    let sphere = Sphere {
+        center: Vec3(0., -100.5, -1.),
+        radius: 100.,
+    };
 
     let mut img_data = Vec::new();
     for j in (0..ny).rev() {
@@ -65,7 +114,7 @@ fn main() {
                 a: origin,
                 b: lower_left_corner + u * horizontal + v * vertical,
             };
-            let col = color(&r);
+            let col = color(&r, &sphere);
             let ir = (255.99 * col.r()) as u8;
             let ig = (255.99 * col.g()) as u8;
             let ib = (255.99 * col.b()) as u8;
