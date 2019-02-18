@@ -4,8 +4,8 @@ use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
 // To use encoder.set()
-use png::HasParameters;
 use ordered_float;
+use png::HasParameters;
 
 use crate::vec3::Vec3;
 
@@ -81,10 +81,10 @@ pub struct World {
     hittables: Vec<Box<Hittable>>,
 }
 
-
 impl Hittable for World {
     fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
-        self.hittables.iter()
+        self.hittables
+            .iter()
             .filter_map(|h| h.hit(&r, t_min, t_max))
             .min_by_key(|r| ordered_float::OrderedFloat(r.t))
     }
