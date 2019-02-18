@@ -1,91 +1,12 @@
+mod vec3;
+
 use std::fs::File;
 use std::io::BufWriter;
-use std::num;
-use std::ops;
 use std::path::Path;
 // To use encoder.set()
 use png::HasParameters;
 
-#[derive(Debug, Copy, Clone)]
-struct Vec3(f64, f64, f64);
-
-impl Vec3 {
-    fn x(&self) -> f64 {
-        self.0
-    }
-    fn y(&self) -> f64 {
-        self.1
-    }
-    fn z(&self) -> f64 {
-        self.2
-    }
-    fn r(&self) -> f64 {
-        self.0
-    }
-    fn g(&self) -> f64 {
-        self.1
-    }
-    fn b(&self) -> f64 {
-        self.2
-    }
-    fn length(&self) -> f64 {
-        (self.0 * self.0 + self.1 * self.1 + self.2 * self.2).sqrt()
-    }
-    fn unit(&self) -> Self {
-        *self / self.length()
-    }
-    fn dot(&self, other: Self) -> f64 {
-        self.0*other.0 + self.1*other.1 + self.2*other.2
-    }
-}
-
-impl ops::Add for Vec3 {
-    type Output = Self;
-
-    fn add(self, other: Self) -> Self {
-        Vec3(self.0 + other.0, self.1 + other.1, self.2 + other.2)
-    }
-}
-
-impl ops::Neg for Vec3 {
-    type Output = Self;
-
-    fn neg(self) -> Self {
-        Vec3(-self.0, -self.1, -self.2)
-    }
-}
-
-impl ops::Sub for Vec3 {
-    type Output = Self;
-
-    fn sub(self, other: Self) -> Self {
-        self + -other
-    }
-}
-
-impl ops::Mul<f64> for Vec3 {
-    type Output = Self;
-
-    fn mul(self, other: f64) -> Self {
-        Vec3(self.0 * other, self.1 * other, self.2 * other)
-    }
-}
-
-impl ops::Mul<Vec3> for f64 {
-    type Output = Vec3;
-
-    fn mul(self, other: Vec3) -> Vec3 {
-        other * self
-    }
-}
-
-impl ops::Div<f64> for Vec3 {
-    type Output = Self;
-
-    fn div(self, other: f64) -> Self {
-        Vec3(self.0 / other, self.1 / other, self.2 / other)
-    }
-}
+use crate::vec3::Vec3;
 
 struct Ray {
     a: Vec3,
@@ -109,18 +30,18 @@ fn hit_sphere(center: Vec3, radius: f64, r: &Ray) -> f64 {
     let a = r.direction().dot(*r.direction());
     let b = 2.0 * oc.dot(*r.direction());
     let c = oc.dot(oc) - radius * radius;
-    let discriminant = b*b - 4.0*a*c;
+    let discriminant = b * b - 4.0 * a * c;
     if discriminant < 0.0 {
         return -1.0;
     }
-    (-b - discriminant.sqrt()) / (2.0*a)
+    (-b - discriminant.sqrt()) / (2.0 * a)
 }
 
 fn color(r: &Ray) -> Vec3 {
     let t = hit_sphere(Vec3(0.0, 0.0, -1.0), 0.5, r);
     if t > 0.0 {
         let n = r.point_at_parameter(t).unit() - Vec3(0.0, 0.0, -1.0);
-        return 0.5*Vec3(n.x() + 1.0, n.y() + 1.0, n.z() + 1.0);
+        return 0.5 * Vec3(n.x() + 1.0, n.y() + 1.0, n.z() + 1.0);
     }
     let unit_direction = r.direction().unit();
     let t = 0.5 * (unit_direction.y() + 1.0);
