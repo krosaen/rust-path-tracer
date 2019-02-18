@@ -53,7 +53,7 @@ impl Hittable for Sphere {
         }
         let sol_pos = (-b + discriminant.sqrt()) / (2.0 * a);
         let sol_neg = (-b - discriminant.sqrt()) / (2.0 * a);
-        let t : Option<f64> = {
+        let t: Option<f64> = {
             if sol_pos > t_min && sol_pos < t_max {
                 Some(sol_pos)
             } else if sol_neg > t_min && sol_neg < t_max {
@@ -65,14 +65,36 @@ impl Hittable for Sphere {
         match t {
             Some(t_val) => {
                 let p = r.point_at_parameter(t_val);
-                Some(HitRecord{
-                    t: t_val, 
+                Some(HitRecord {
+                    t: t_val,
                     p,
                     normal: (p - self.center) / self.radius,
                 })
             }
-            None => None
+            None => None,
         }
+    }
+}
+
+pub struct World {
+    hittables: Vec<Box<Hittable>>,
+}
+
+impl Hittable for World {
+    fn hit(&self, r: &Ray, t_min: f64, t_max: f64) -> Option<HitRecord> {
+        let mut closest_t = t_max;
+        let mut closest_hit: Option<HitRecord> = None;
+        for hittable in &self.hittables {
+            closest_hit = match hittable.hit(&r, t_min, t_max) {
+                Some(hit_record) if hit_record.t < closest_t => {
+                    closest_t = hit_record.t;
+                    Some(hit_record)
+                }
+                Some(hit_record) => Some(hit_record),
+                None => closest_hit,
+            }
+        }
+        closest_hit
     }
 }
 
@@ -100,9 +122,17 @@ fn main() {
     let horizontal = Vec3(4.0, 0.0, 0.0);
     let vertical = Vec3(0.0, 2.0, 0.0);
     let origin = Vec3(0.0, 0.0, 0.0);
-    let sphere = Sphere {
-        center: Vec3(0., -100.5, -1.),
-        radius: 100.,
+    let world = World {
+        hittables: vec![
+            Box::new(Sphere {
+                center: Vec3(0., -100.5, -1.),
+                radius: 100.,
+            }),
+            Box::new(Sphere {
+                center: Vec3(0., 0., -1.),
+                radius: 0.5,
+            }),
+        ],
     };
 
     let mut img_data = Vec::new();
@@ -114,7 +144,7 @@ fn main() {
                 a: origin,
                 b: lower_left_corner + u * horizontal + v * vertical,
             };
-            let col = color(&r, &sphere);
+            let col = color(&r, &world);
             let ir = (255.99 * col.r()) as u8;
             let ig = (255.99 * col.g()) as u8;
             let ib = (255.99 * col.b()) as u8;
