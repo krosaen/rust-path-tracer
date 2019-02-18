@@ -1,4 +1,3 @@
-use std::num;
 use std::ops;
 
 #[derive(Debug, Copy, Clone)]
