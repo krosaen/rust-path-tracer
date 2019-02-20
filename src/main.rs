@@ -110,6 +110,7 @@ fn color(r: &Ray, world: &Hittable) -> Vec3 {
 fn main() {
     let nx = 200;
     let ny = 100;
+    let num_samples_per_pixel = 100;
     let lower_left_corner = Vec3(-2.0, -1.0, -1.0);
     let horizontal = Vec3(4.0, 0.0, 0.0);
     let vertical = Vec3(0.0, 2.0, 0.0);
@@ -130,13 +131,17 @@ fn main() {
     let mut img_data = Vec::new();
     for j in (0..ny).rev() {
         for i in 0..nx {
-            let u = (i as f64) / (nx as f64);
-            let v = (j as f64) / (ny as f64);
-            let r = Ray {
-                a: origin,
-                b: lower_left_corner + u * horizontal + v * vertical,
-            };
-            let col = color(&r, &world);
+            let mut col = Vec3(0., 0., 0.);
+            for k in 0..num_samples_per_pixel {
+                let u = ((i as f64) + rand::random::<f64>()) / (nx as f64);
+                let v = ((j as f64) + rand::random::<f64>()) / (ny as f64);
+                let r = Ray {
+                    a: origin,
+                    b: lower_left_corner + u * horizontal + v * vertical,
+                };
+                col = col + color(&r, &world);
+            }
+            col = col / (num_samples_per_pixel as f64);
             let ir = (255.99 * col.r()) as u8;
             let ig = (255.99 * col.g()) as u8;
             let ib = (255.99 * col.b()) as u8;
