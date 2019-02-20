@@ -125,6 +125,10 @@ fn main() {
                 center: Vec3(0., 0., -1.),
                 radius: 0.5,
             }),
+            Box::new(Sphere {
+                center: Vec3(0.4, 0.5, -2.),
+                radius: 1.,
+            }),
         ],
     };
 
