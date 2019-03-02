@@ -107,14 +107,32 @@ fn color(r: &Ray, world: &Hittable) -> Vec3 {
     }
 }
 
+pub struct Camera {
+    origin: Vec3,
+    lower_left_corner: Vec3,
+    horizontal: Vec3,
+    vertical: Vec3,
+}
+
+impl Camera {
+    fn get_ray(&self, u: f64, v: f64) -> Ray {
+        Ray {
+            a: self.origin,
+            b: self.lower_left_corner + u * self.horizontal + v * self.vertical,
+        }
+    }
+}
+
 fn main() {
     let nx = 200;
     let ny = 100;
     let num_samples_per_pixel = 100;
-    let lower_left_corner = Vec3(-2.0, -1.0, -1.0);
-    let horizontal = Vec3(4.0, 0.0, 0.0);
-    let vertical = Vec3(0.0, 2.0, 0.0);
-    let origin = Vec3(0.0, 0.0, 0.0);
+    let cam = Camera {
+        origin: Vec3(0.0, 0.0, 1.0),
+        lower_left_corner: Vec3(-2.0, -1.0, -1.0),
+        horizontal: Vec3(4.0, 0.0, 0.0),
+        vertical: Vec3(0.0, 2.0, 0.0),
+    };
     let world = World {
         hittables: vec![
             Box::new(Sphere {
@@ -139,10 +157,7 @@ fn main() {
             for k in 0..num_samples_per_pixel {
                 let u = ((i as f64) + rand::random::<f64>()) / (nx as f64);
                 let v = ((j as f64) + rand::random::<f64>()) / (ny as f64);
-                let r = Ray {
-                    a: origin,
-                    b: lower_left_corner + u * horizontal + v * vertical,
-                };
+                let r = cam.get_ray(u, v);
                 col = col + color(&r, &world);
             }
             col = col / (num_samples_per_pixel as f64);
