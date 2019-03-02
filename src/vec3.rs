@@ -22,8 +22,13 @@ impl Vec3 {
     pub fn b(&self) -> f64 {
         self.2
     }
+
+    pub fn squared_length(&self) -> f64 {
+        (self.0 * self.0 + self.1 * self.1 + self.2 * self.2)
+    }
+
     pub fn length(&self) -> f64 {
-        (self.0 * self.0 + self.1 * self.1 + self.2 * self.2).sqrt()
+        self.squared_length().sqrt()
     }
     pub fn unit(&self) -> Self {
         *self / self.length()
