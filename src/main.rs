@@ -2,8 +2,10 @@ mod vec3;
 
 use std::fs::File;
 use std::io::BufWriter;
+use std::io::Write;
 use std::path::Path;
 // To use encoder.set()
+use chrono::Utc;
 use ordered_float;
 use png::HasParameters;
 
@@ -28,10 +30,64 @@ impl Ray {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct HitRecord {
+pub struct Scatter {
+    pub attenuation: Vec3,
+    pub scattered: Ray,
+}
+
+pub trait Material {
+    fn scatter(&self, r: &Ray, hit_record: &HitRecord) -> Option<Scatter>;
+}
+
+pub struct Lambertian {
+    albedo: Vec3,
+}
+
+impl Material for Lambertian {
+    fn scatter(&self, _r: &Ray, hit_record: &HitRecord) -> Option<Scatter> {
+        // bounce in a random new direction
+        // TODO: try out suggestion in book, "Note we could just as well only
+        // scatter with some probability p and have attenuation be albedo/p.
+        // Your choice."
+        let target = hit_record.p + hit_record.normal + random_in_unit_sphere();
+        Some(Scatter {
+            attenuation: self.albedo,
+            scattered: Ray {
+                a: hit_record.p,
+                b: target - hit_record.p,
+            },
+        })
+    }
+}
+
+pub struct Metal {
+    albedo: Vec3,
+}
+
+impl Material for Metal {
+    fn scatter(&self, r: &Ray, hit_record: &HitRecord) -> Option<Scatter> {
+        let reflected = r.direction().unit().reflect(&hit_record.normal);
+        let scattered = Ray {
+            a: hit_record.p,
+            b: reflected,
+        };
+        if scattered.direction().dot(hit_record.normal) > 0. {
+            Some(Scatter {
+                attenuation: self.albedo,
+                scattered: scattered,
+            })
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct HitRecord<'a> {
     pub t: f64,
     pub p: Vec3,
     pub normal: Vec3,
+    pub material: &'a Material,
 }
 
 pub trait Hittable {
@@ -41,6 +97,7 @@ pub trait Hittable {
 pub struct Sphere {
     center: Vec3,
     radius: f64,
+    material: Box<Material>,
 }
 
 impl Hittable for Sphere {
@@ -49,17 +106,17 @@ impl Hittable for Sphere {
         let a = r.direction().dot(*r.direction());
         let b = 2.0 * oc.dot(*r.direction());
         let c = oc.dot(oc) - self.radius * self.radius;
-        let discriminant = b * b - 4.0 * a * c;
-        if discriminant <= 0.0 {
+        let discriminant = b * b - 4. * a * c;
+        if discriminant <= 0. {
             return None;
         }
         let sol_pos = (-b + discriminant.sqrt()) / (2.0 * a);
         let sol_neg = (-b - discriminant.sqrt()) / (2.0 * a);
         let t: Option<f64> = {
-            if sol_pos > t_min && sol_pos < t_max {
-                Some(sol_pos)
-            } else if sol_neg > t_min && sol_neg < t_max {
+            if sol_neg > t_min && sol_neg < t_max {
                 Some(sol_neg)
+            } else if sol_pos > t_min && sol_pos < t_max {
+                Some(sol_pos)
             } else {
                 None
             }
@@ -71,6 +128,7 @@ impl Hittable for Sphere {
                     t: t_val,
                     p,
                     normal: (p - self.center) / self.radius,
+                    material: &(*self.material),
                 })
             }
             None => None,
@@ -91,19 +149,14 @@ impl Hittable for World {
     }
 }
 
-fn color(r: Ray, world: &Hittable) -> Vec3 {
-    match world.hit(&r, 0.001, std::f64::MAX) {
-        Some(hit_record) => {
-            // bounce in a random new direction
-            let target = hit_record.p + hit_record.normal + random_in_unit_sphere();
-            0.5 * color(
-                Ray {
-                    a: hit_record.p,
-                    b: target - hit_record.p,
-                },
-                world,
-            )
-        }
+fn color(r: Ray, world: &Hittable, depth: i32) -> Vec3 {
+    match world.hit(&r, 0.0001, std::f64::MAX) {
+        Some(hit_record) => match hit_record.material.scatter(&r, &hit_record) {
+            Some(scatter) if depth < 50 => {
+                scatter.attenuation * color(scatter.scattered, world, depth + 1)
+            }
+            _ => Vec3(0., 0., 0.),
+        },
         None => {
             let unit_direction = r.direction().unit();
             let t = 0.5 * (unit_direction.y() + 1.0);
@@ -147,7 +200,7 @@ impl Camera {
 fn main() {
     let nx = 400;
     let ny = 200;
-    let num_samples_per_pixel = 100;
+    let num_samples_per_pixel = 50;
     let cam = Camera {
         origin: Vec3(0.0, 0.0, 0.0),
         lower_left_corner: Vec3(-2.0, -1.0, -1.0),
@@ -157,17 +210,33 @@ fn main() {
     let world = World {
         hittables: vec![
             Box::new(Sphere {
-                center: Vec3(0., -100.5, -1.),
-                radius: 100.,
-            }),
-            Box::new(Sphere {
                 center: Vec3(0., 0., -1.),
                 radius: 0.5,
+                material: Box::new(Lambertian {
+                    albedo: Vec3(0.8, 0.3, 0.3),
+                }),
             }),
-            // Box::new(Sphere {
-            //     center: Vec3(0.4, 0.5, -2.),
-            //     radius: 1.,
-            // }),
+            Box::new(Sphere {
+                center: Vec3(0., -100.5, -1.),
+                radius: 100.,
+                material: Box::new(Lambertian {
+                    albedo: Vec3(0.8, 0.8, 0.0),
+                }),
+            }),
+            Box::new(Sphere {
+                center: Vec3(1., 0., -1.),
+                radius: 0.5,
+                material: Box::new(Metal {
+                    albedo: Vec3(0.8, 0.6, 0.2),
+                }),
+            }),
+            Box::new(Sphere {
+                center: Vec3(-1., 0., -1.),
+                radius: 0.5,
+                material: Box::new(Metal {
+                    albedo: Vec3(0.8, 0.8, 0.8),
+                }),
+            }),
         ],
     };
 
@@ -179,10 +248,10 @@ fn main() {
                 let u = ((i as f64) + rand::random::<f64>()) / (nx as f64);
                 let v = ((j as f64) + rand::random::<f64>()) / (ny as f64);
                 let r = cam.get_ray(u, v);
-                col = col + color(r, &world);
+                col = col + color(r, &world, 0);
             }
             col = col / (num_samples_per_pixel as f64);
-            let ir = (255.99 * col.r().sqrt()) as u8;  // sqrt for gamma 2
+            let ir = (255.99 * col.r().sqrt()) as u8; // sqrt for gamma 2
             let ig = (255.99 * col.g().sqrt()) as u8;
             let ib = (255.99 * col.b().sqrt()) as u8;
             img_data.push(ir);
@@ -190,7 +259,12 @@ fn main() {
             img_data.push(ib);
             img_data.push(255);
         }
+        print!(".");
+        std::io::stdout().flush().unwrap();
     }
+    println!("");
+    let now = Utc::now();
+    save_png(&img_data, &format!("test_{}.png", now.timestamp()), nx, ny);
     save_png(&img_data, "test.png", nx, ny);
 }
 

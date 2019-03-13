@@ -36,6 +36,10 @@ impl Vec3 {
     pub fn dot(&self, other: Self) -> f64 {
         self.0 * other.0 + self.1 * other.1 + self.2 * other.2
     }
+
+    pub fn reflect(&self, normal: &Vec3) -> Vec3 {
+        *self - 2. * self.dot(*normal) * *normal
+    }
 }
 
 impl ops::Add for Vec3 {
@@ -43,6 +47,14 @@ impl ops::Add for Vec3 {
 
     fn add(self, other: Self) -> Self {
         Vec3(self.0 + other.0, self.1 + other.1, self.2 + other.2)
+    }
+}
+
+impl ops::Mul for Vec3 {
+    type Output = Self;
+
+    fn mul(self, other: Self) -> Self {
+        Vec3(self.0 * other.0, self.1 * other.1, self.2 * other.2)
     }
 }
 
