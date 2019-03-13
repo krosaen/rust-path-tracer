@@ -70,7 +70,7 @@ impl Material for Metal {
         let reflected = r.direction().unit().reflect(&hit_record.normal);
         let scattered = Ray {
             a: hit_record.p,
-            b: reflected + self.fuzz * random_in_unit_sphere(),
+            b: reflected + 1.0_f64.min(self.fuzz) * random_in_unit_sphere(),
         };
         if scattered.direction().dot(hit_record.normal) > 0. {
             Some(Scatter {
